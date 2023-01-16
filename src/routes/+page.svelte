@@ -1,6 +1,11 @@
 <div class="slide-container">
   <section class="section">
-    <h1 class="title is-2">Power Remote for OpenLP</h1>
+    <h1 class="title is-2">
+      <span class="icon" style="vertical-align: middle; width: 1.5em;">
+        <img src="/favicon.png" alt="Power Remote Icon">
+      </span>
+      <span style="vertical-align: middle;">Power Remote for OpenLP</span>
+    </h1>
     <div class="columns">
       <div class="column">
         <h2 class="title is-3">Slides</h2>
