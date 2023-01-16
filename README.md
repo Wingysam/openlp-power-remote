@@ -1,38 +1,9 @@
-# create-svelte
+<img src="static/favicon.png" width="72">
 
-Everything you need to build a Svelte project, powered by [`create-svelte`](https://github.com/sveltejs/kit/tree/master/packages/create-svelte).
+# Power Remote for OpenLP
+Power Remote is an alternative web remote for [OpenLP](https://openlp.org). It enables fast movement between slides with a unique keyboard layout. If you have OpenLP running, you can demo it here: [powerremote.wingysam.xyz](http://powerremote.wingysam.xyz). (The site is not delivered by HTTPS to avoid mixed active content being blocked)
 
-## Creating a project
+# About Developer
+Hi, I'm Wingy. This is a project I made because I didn't like the trackpad of the laptop at my church. My website is [samwing.dev](https://samwing.dev). Please [hire me](https://samwing.dev/hire).
 
-If you're seeing this, you've probably already done this step. Congrats!
-
-```bash
-# create a new project in the current directory
-npm create svelte@latest
-
-# create a new project in my-app
-npm create svelte@latest my-app
-```
-
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
-
-```bash
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
-```
-
-## Building
-
-To create a production version of your app:
-
-```bash
-npm run build
-```
-
-You can preview the production build with `npm run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://kit.svelte.dev/docs/adapters) for your target environment.
+[![ko-fi](https://www.ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/C1C2347HB)
