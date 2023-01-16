@@ -6,11 +6,11 @@
       </span>
       <span style="vertical-align: middle;">Power Remote for OpenLP</span>
     </h1>
-    <div class="columns">
-      <div class="column">
-        <h2 class="title is-3">Slides</h2>
-        <div class="columns is-multiline">
-          {#if data.slides}
+    {#if data.items && data.slides}
+      <div class="columns">
+        <div class="column">
+          <h2 class="title is-3">Slides</h2>
+          <div class="columns is-multiline">
             {#each data.slides as slide}
               <div class="column slide-column">
                 <div class="box slide-box" on:click="{() => slide.slide.select()}" on:keydown="{() => slide.slide.select()}">
@@ -20,13 +20,11 @@
                 </div>
               </div>
             {/each}
-          {/if}
+          </div>
         </div>
-      </div>
-      <div class="column is-narrow">
-        <h2 class="title is-3">Items</h2>
-        <ol>
-          {#if data.items}
+        <div class="column is-narrow">
+          <h2 class="title is-3">Items</h2>
+          <ol>
             {#each data.items as item}
               <li>
                 <button class="button item-button" class:selected="{item.item.selected}" on:click="{() => item.item.select()}">
@@ -37,14 +35,37 @@
                 </button>
               </li>
             {/each}
-          {/if}
-        </ol>
+          </ol>
+        </div>
       </div>
-    </div>
+    {:else if data.failedToConnect}
+      <h2 class="title is-3">Remote URL</h2>
+      <p>
+        {#if data.nondefaultRemote}Failed to connect to {data.nondefaultRemote}. {/if}
+        Put the "Remote URL" from OpenLP's configuration window in this box:
+      </p>
+      <form on:submit="{(event) => { event.preventDefault(); setRemote() } }">
+        <div class="field has-addons">
+          <div class="control">
+            <input class="input" type="text" name="url" id="remote-url-input" placeholder="Remote URL">
+          </div>
+          <div class="control">
+            <input class="button is-primary" type="submit" value="Connect">
+          </div>
+        </div>
+      </form>
+    {:else}
+      <p>Power Remote is attempting to connect to OpenLP, please wait.</p>
+    {/if}
   </section>
 </div>
 
 <style>
+  h1 {
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+  }
   .slide-column {
     max-height: 10em;
   }
@@ -102,19 +123,38 @@
     slides?: {
       slide: OpenLPSlide
       bind: Keybind
-    }[]
+    }[],
+    failedToConnect?: true
+    nondefaultRemote?: string
   }
 
   export { data }
 
-  onMount(async () => {
-    const output = { data: {} }
-    if (!globalThis.addEventListener) return output
+  function setRemote () {
+    const remoteUrl = (document.querySelector('#remote-url-input') as HTMLInputElement).value
+    init(remoteUrl)
+  }
+
+  async function init (remoteUrlFormOption?: string) {
+    if (!globalThis.addEventListener) return
+
+    data.failedToConnect = undefined
 
     const DEFAULT_OPENLP_REMOTE_URL = 'http://localhost:4316'
     const urlParams = new URLSearchParams(window.location.search)
-    const remoteUrl = urlParams.get('remote')
-    const olp = await OpenLP.new(fetch, remoteUrl ?? DEFAULT_OPENLP_REMOTE_URL)
+    const remoteUrlQueryParam = urlParams.get('remote')
+
+    let selectedRemote = remoteUrlFormOption ?? remoteUrlQueryParam ?? DEFAULT_OPENLP_REMOTE_URL
+    if (!selectedRemote.startsWith('http://') && !selectedRemote.startsWith('https://')) selectedRemote = `http://${selectedRemote}`
+    if (selectedRemote !== DEFAULT_OPENLP_REMOTE_URL) data.nondefaultRemote = selectedRemote
+
+    let olp: OpenLP
+    try {
+      olp = await OpenLP.new(fetch, selectedRemote)
+    } catch {
+      data.failedToConnect = true
+      return
+    }
 
     const ITEM_KEYBINDS = [
       new Keybind('Digit1', '1'),
@@ -184,7 +224,7 @@
       event.preventDefault()
       await slide.slide.select()
     })
+  }
 
-    return output
-  })
+  onMount(init)
 </script>

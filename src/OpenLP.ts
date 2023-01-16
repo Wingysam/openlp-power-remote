@@ -1,3 +1,5 @@
+const HTTP_TIMEOUT = 5000
+
 type ApiItem = {
   ccli_number: string,
   id: string,
@@ -22,7 +24,8 @@ type ApiLiveItem = {
   id: string
 }
 export class OpenLP extends EventTarget {
-  private socket: WebSocket
+  private olpUrl: URL
+  private socket!: WebSocket
   private api: OpenLPApi
   private counter = 0
   private liveItem!: ApiLiveItem
@@ -32,22 +35,8 @@ export class OpenLP extends EventTarget {
   private constructor (fetch: Window['fetch'], olpBase: string) {
     super()
 
-    const olpUrl = new URL(olpBase)
-    const wsProtocol = { 'http:': 'ws:', 'https:': 'wss:' }[olpUrl.protocol]
-    if (!wsProtocol) throw new Error(`Unknown protocol ${olpUrl.protocol}`)
-
-    this.socket = new WebSocket(`${wsProtocol}//${olpUrl.hostname}:${Number(olpUrl.port) + 1}`)
-    this.api = new OpenLPApi(fetch, `${olpUrl.origin}/api/v2/`)
-
-    this.socket.addEventListener('message', async ({ data }) => {
-      if (data.counter <= this.counter) return
-      this.counter = data.counter
-
-      if (this.liveItem?.id !== data.item) {
-        this.fetchItems()
-      }
-      this.fetchLiveItem()
-    })
+    this.olpUrl = new URL(olpBase)
+    this.api = new OpenLPApi(fetch, `${this.olpUrl.origin}/api/v2/`)
   }
 
   static async new (fetch: Window['fetch'], olpBase: string) {
@@ -56,6 +45,7 @@ export class OpenLP extends EventTarget {
       olp.fetchItems(),
       olp.fetchLiveItem()
     ])
+    olp.initializeWebSocket()
     return olp
   }
 
@@ -74,6 +64,22 @@ export class OpenLP extends EventTarget {
     const event = new Event('liveItemUpdated')
     this.dispatchEvent(event)
   }
+
+  private initializeWebSocket () {
+    const wsProtocol = { 'http:': 'ws:', 'https:': 'wss:' }[this.olpUrl.protocol]
+    if (!wsProtocol) throw new Error(`Unknown protocol ${this.olpUrl.protocol}`)
+
+    this.socket = new WebSocket(`${wsProtocol}//${this.olpUrl.hostname}:${Number(this.olpUrl.port) + 1}`)
+    this.socket.addEventListener('message', async ({ data }) => {
+      if (data.counter <= this.counter) return
+      this.counter = data.counter
+
+      if (this.liveItem?.id !== data.item) {
+        this.fetchItems()
+      }
+      this.fetchLiveItem()
+    })
+  }
 }
 
 class OpenLPApi {
@@ -86,18 +92,27 @@ class OpenLPApi {
   }
 
   async get (path: string) {
-    const response = await this.fetch(this.apiBase + path)
+    const response = await this.http(this.apiBase + path)
     const data = await response.json()
     return data
   }
 
   async post (path: string, body: any) {
-    await this.fetch(this.apiBase + path, {
+    await this.http(this.apiBase + path, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(body)
+    })
+  }
+
+  private async http (url: string, options: any = {}) {
+    const abortController = new AbortController()
+    setTimeout(() => abortController.abort(), HTTP_TIMEOUT)
+    return this.fetch(url, {
+      ...options,
+      signal: abortController.signal
     })
   }
 }
