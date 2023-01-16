@@ -8,7 +8,7 @@
           {#if data.slides}
             {#each data.slides as slide}
               <div class="column slide-column">
-                <div class="box slide-box">
+                <div class="box slide-box" on:click="{() => slide.slide.select()}" on:keydown="{() => slide.slide.select()}">
                   <p class="slide" class:selected="{slide.slide.selected}">
                     {#if slide.bind}<span class="tag">{slide.bind.display}</span> {/if}{slide.slide.text.split('\n').join(' / ')}
                   </p>
