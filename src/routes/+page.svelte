@@ -9,8 +9,8 @@
             {#each data.slides as slide}
               <div class="column slide-column">
                 <div class="box slide-box">
-                  <p class="slide" class:selected="{slide.selected}">
-                    {#if slide.bind}<span class="tag">{slide.bind.display}</span> {/if}{slide.text.split('\n').join(' / ')}
+                  <p class="slide" class:selected="{slide.slide.selected}">
+                    {#if slide.bind}<span class="tag">{slide.bind.display}</span> {/if}{slide.slide.text.split('\n').join(' / ')}
                   </p>
                 </div>
               </div>
@@ -86,7 +86,7 @@
 <script lang="ts">
   import { onMount } from 'svelte'
 
-  import { OpenLP, type OpenLPItem, type ApiLiveItem } from '../OpenLP.js'
+  import { OpenLP, type OpenLPItem, type OpenLPSlide } from '../OpenLP.js'
   import { Keybind } from '../Keybind.js'
 
   const data = {} as {
@@ -95,8 +95,7 @@
       bind: Keybind
     }[]
     slides?: {
-      text: string
-      selected: boolean
+      slide: OpenLPSlide
       bind: Keybind
     }[]
   }
@@ -164,10 +163,9 @@
     ]
 
     function updateLiveItem () {
-      data.slides = olp.liveItem.slides.map((slide, i) => {
+      data.slides = olp.slides.map((slide, i) => {
         return {
-          text: slide.text,
-          selected: slide.selected,
+          slide,
           bind: SLIDE_KEYBINDS[i]
         }
       })
@@ -176,10 +174,10 @@
     updateLiveItem()
 
     globalThis.addEventListener('keydown', async (event) => {
-      const slideIndex = SLIDE_KEYBINDS.findIndex(bind => bind.code === event.code)
-      if (slideIndex === -1) return
+      const slide = data.slides?.find(slide => slide.bind.code === event.code)
+      if (!slide) return
       event.preventDefault()
-      await olp.setSlide(slideIndex)
+      await slide.slide.select()
     })
 
     return output

@@ -1,4 +1,4 @@
-export type ApiItem = {
+type ApiItem = {
   ccli_number: string,
   id: string,
   is_valid: boolean,
@@ -8,7 +8,7 @@ export type ApiItem = {
   title: string
 }
 
-export type ApiLiveItem = {
+type ApiLiveItem = {
   title: string
   slides: {
       tag: string,
@@ -25,8 +25,9 @@ export class OpenLP extends EventTarget {
   private socket: WebSocket
   private api: OpenLPApi
   private counter = 0
+  private liveItem!: ApiLiveItem
   items!: OpenLPItem[]
-  liveItem!: ApiLiveItem
+  slides!: OpenLPSlide[]
 
   private constructor (fetch: Window['fetch'], olpBase: string) {
     super()
@@ -58,10 +59,6 @@ export class OpenLP extends EventTarget {
     return olp
   }
 
-  async setSlide (index: number) {
-    this.api.post('controller/show', { id: index })
-  }
-
   private async fetchItems () {
     this.items = (await this.api.get('service/items'))
       .map((apiItem: ApiItem) => new OpenLPItem(this.api, apiItem))
@@ -71,6 +68,9 @@ export class OpenLP extends EventTarget {
 
   private async fetchLiveItem () {
     this.liveItem = await this.api.get('controller/live-items')
+    this.slides = this.liveItem.slides.map((apiSlide, i) => {
+      return new OpenLPSlide(this.api, apiSlide, i)
+    })
     const event = new Event('liveItemUpdated')
     this.dispatchEvent(event)
   }
@@ -118,8 +118,30 @@ class OpenLPItem {
   }
 
   async select () {
-    this.api.post('service/show', { id: this.id })
+    await this.api.post('service/show', { id: this.id })
   }
 }
 
 export type { OpenLPItem }
+
+class OpenLPSlide {
+  private api: OpenLPApi
+  private index: number
+
+  text: string
+  selected: boolean
+
+  constructor(api: OpenLPApi, apiSlide: ApiLiveItem['slides'][0], index: number) {
+    this.api = api
+    this.index = index
+    
+    this.text = apiSlide.text
+    this.selected = apiSlide.selected
+  }
+
+  async select () {
+    await this.api.post('controller/show', { id: this.index })
+  }
+}
+
+export type { OpenLPSlide }
