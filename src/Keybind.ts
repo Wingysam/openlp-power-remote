@@ -12,7 +12,7 @@ export class Keybind {
     try {
       if (!navigator.keyboard) throw new Error('navigator.keyboard unsupported')
       const layout = await navigator.keyboard.getLayoutMap()
-      this.display = layout.get(this.code)
+      this.display = layout.get(this.code).toUpperCase()
     } catch {
       // do nothing
     }
