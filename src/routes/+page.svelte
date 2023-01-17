@@ -36,6 +36,73 @@
               </li>
             {/each}
           </ol>
+          <h2 class="title is-3">Other</h2>
+          <ul>
+            {#each data.hotkeyButtons as button}
+              <li>
+                <button class="button item-button" on:click="{() => button.activate()}">
+                  {#if button.bind}
+                    <span class="tag">{button.bind.display}</span>
+                  {/if}
+                  <span>{button.label}</span>
+                </button>
+              </li>
+            {/each}
+          </ul>
+        </div>
+      </div>
+      <div class="modal" class:is-active="{data.songSearchModal}">
+        <div class="modal-background"></div>
+        <div class="modal-card">
+          <header class="modal-card-head">
+            <p class="modal-card-title">Song Search</p>
+            <button class="delete" aria-label="close" on:click="{() => resetSongSearch()}"></button>
+          </header>
+          <section class="modal-card-body">
+            {#if data.songSearchError}
+              <p>{data.songSearchError}</p>
+            {/if}
+            <form on:submit="{(event) => { event.preventDefault(); doSongSearch() } }">
+              <div class="field has-addons">
+                <div class="control">
+                  <input class="input" type="text" name="song-name" id="song-search-input" placeholder="Song Name" bind:value="{data.songSearchQuery}">
+                </div>
+                <div class="control">
+                  <input class="button is-primary" type="submit" value="Send Live">
+                </div>
+              </div>
+            </form>
+          </section>
+          <footer class="modal-card-foot">
+            <button class="button" on:click="{() => resetSongSearch()}">Cancel</button>
+          </footer>
+        </div>
+      </div>
+      <div class="modal" class:is-active="{data.alertModal}">
+        <div class="modal-background"></div>
+        <div class="modal-card">
+          <header class="modal-card-head">
+            <p class="modal-card-title">Show Alert</p>
+            <button class="delete" aria-label="close" on:click="{() => resetAlert()}"></button>
+          </header>
+          <section class="modal-card-body">
+            {#if data.songSearchError}
+              <p>{data.songSearchError}</p>
+            {/if}
+            <form on:submit="{(event) => { event.preventDefault(); doAlert() } }">
+              <div class="field has-addons">
+                <div class="control">
+                  <input class="input" type="text" name="alert-text" id="alert-text-input" placeholder="Alert Text" bind:value="{data.alertText}">
+                </div>
+                <div class="control">
+                  <input class="button is-primary" type="submit" value="Show Alert">
+                </div>
+              </div>
+            </form>
+          </section>
+          <footer class="modal-card-foot">
+            <button class="button" on:click="{() => resetAlert()}">Cancel</button>
+          </footer>
         </div>
       </div>
     {:else if data.failedToConnect}
@@ -100,10 +167,6 @@
     padding-bottom: .5em;
   }
 
-  .item-button {
-    user-select: none;
-  }
-
   .item-button .tag {
     margin-right: .5em;
   }
@@ -126,13 +189,66 @@
     }[],
     failedToConnect?: true
     nondefaultRemote?: string
+    hotkeyButtons: {
+      label: string,
+      bind?: Keybind
+      activate: () => unknown
+    }[]
+    songSearchModal: boolean
+    songSearchQuery: string
+    songSearchError?: string
+    alertModal: boolean
+    alertText: string
   }
 
+  data.hotkeyButtons = []
+  data.songSearchModal = false
+  data.songSearchQuery = ''
+  data.alertModal = false
+  data.alertText = ''
+
   export { data }
+
+  let olp: OpenLP
 
   function setRemote () {
     const remoteUrl = (document.querySelector('#remote-url-input') as HTMLInputElement).value
     init(remoteUrl)
+  }
+
+  async function doSongSearch () {
+    try {
+      const results = await olp.searchSongs(data.songSearchQuery)
+      if (!results.length) throw new Error('No results found.')
+      await results[0].sendLive()
+      resetSongSearch()
+    } catch (error) {
+      if (!(error instanceof Error)) {
+        data.songSearchError = `${error}`
+        return
+      }
+      data.songSearchError = error.message
+    }
+  }
+
+  function resetSongSearch () {
+    data.songSearchModal = false
+    data.songSearchQuery = ''
+    data.songSearchError = undefined
+  }
+
+  async function doAlert () {
+    await olp.sendAlert(data.alertText)
+    resetAlert()
+  }
+
+  function resetAlert () {
+    data.alertModal = false
+    data.alertText = ''
+  }
+
+  function shouldKeybindsWork () {
+    return !data.songSearchModal && !data.alertModal
   }
 
   async function init (remoteUrlFormOption?: string) {
@@ -148,11 +264,11 @@
     if (!selectedRemote.startsWith('http://') && !selectedRemote.startsWith('https://')) selectedRemote = `http://${selectedRemote}`
     if (selectedRemote !== DEFAULT_OPENLP_REMOTE_URL) data.nondefaultRemote = selectedRemote
 
-    let olp: OpenLP
     try {
       olp = await OpenLP.new(fetch, selectedRemote)
-    } catch {
+    } catch (error) {
       data.failedToConnect = true
+      console.log(error)
       return
     }
 
@@ -180,6 +296,7 @@
     updateItems()
 
     globalThis.addEventListener('keydown', async (event) => {
+      if (!shouldKeybindsWork()) return
       const item = data.items?.find(item => item.bind?.code === event.code)
       if (!item) return
       event.preventDefault()
@@ -219,10 +336,86 @@
     updateLiveItem()
 
     globalThis.addEventListener('keydown', async (event) => {
+      if (!shouldKeybindsWork()) return
       const slide = data.slides?.find(slide => slide.bind.code === event.code)
       if (!slide) return
       event.preventDefault()
       await slide.slide.select()
+    })
+
+    globalThis.addEventListener('keydown', async (event) => {
+      if (!shouldKeybindsWork()) return
+      if (event.altKey || event.ctrlKey || event.metaKey) return
+      const button = data.hotkeyButtons.find(button => button?.bind?.code === event.code)
+      if (!button) return
+      event.preventDefault()
+      button.activate()
+    })
+
+    function addHotkeyButton ({ label, activate, bind }: {
+      label: string,
+      activate: () => unknown,
+      bind?: Keybind
+    }) {
+      data.hotkeyButtons = [...data.hotkeyButtons, { label, activate, bind }]
+    }
+
+    addHotkeyButton({
+      label: 'Search Songs',
+      bind: new Keybind('KeyQ', 'Q'),
+      async activate () {
+        data.songSearchModal = true
+        const songSearchInput = document.querySelector('#song-search-input') as HTMLInputElement
+        // element isn't visible this tick, so we do it next js engine cycle
+        setTimeout(() => {
+          songSearchInput.focus()
+        })
+      }
+    })
+
+    addHotkeyButton({
+      label: 'Send Alert',
+      bind: new Keybind('KeyW', 'W'),
+      activate () {
+        data.alertModal = true
+        const alertTextInput = document.querySelector('#alert-text-input') as HTMLInputElement
+        // element isn't visible this tick, so we do it next js engine cycle
+        setTimeout(() => {
+          alertTextInput.focus()
+        })
+      }
+    })
+
+    addHotkeyButton({
+      label: 'Show Blank',
+      bind: new Keybind('KeyE', 'E'),
+      activate () {
+        olp.setDisplay('blank')
+      }
+    })
+
+    addHotkeyButton({
+      label: 'Show Theme',
+      bind: new Keybind('KeyR', 'R'),
+      activate () {
+        olp.setDisplay('theme')
+      }
+    })
+
+    addHotkeyButton({
+      label: 'Show Desktop',
+      bind: new Keybind('KeyT', 'T'),
+      activate () {
+        olp.setDisplay('desktop')
+      }
+    })
+
+    addHotkeyButton({
+      label: 'Show Presentation',
+      bind: new Keybind('KeyY', 'Y'),
+      activate () {
+        olp.setDisplay('show')
+      }
     })
   }
 

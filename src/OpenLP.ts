@@ -23,6 +23,9 @@ type ApiLiveItem = {
   }[]
   id: string
 }
+
+type ApiSongSearchResult = [number, string, string]
+
 export class OpenLP extends EventTarget {
   private olpUrl: URL
   private socket!: WebSocket
@@ -47,6 +50,22 @@ export class OpenLP extends EventTarget {
     ])
     olp.initializeWebSocket()
     return olp
+  }
+
+  async setDisplay (display: 'blank' | 'theme' | 'desktop' | 'show') {
+    await this.api.post('core/display', { display })
+  }
+
+  async sendAlert (text: string) {
+    await this.api.post('plugins/alerts', { text })
+  }
+
+  async searchSongs (query: string): Promise<SongSearchResult[]> {
+    const songs = await this.api.get(`plugins/songs/search`, { text: query })
+    return songs
+      .map((apiSongSearchResult: ApiSongSearchResult) => {
+        return new SongSearchResult(this.api, apiSongSearchResult)
+      })
   }
 
   private async fetchItems () {
@@ -91,8 +110,9 @@ class OpenLPApi {
     this.apiBase = apiBase
   }
 
-  async get (path: string) {
-    const response = await this.http(this.apiBase + path)
+  async get (path: string, queryOptions?: any) {
+    const querystring = await this.buildQuerystring(queryOptions)
+    const response = await this.http(this.apiBase + path + querystring)
     const data = await response.json()
     return data
   }
@@ -114,6 +134,26 @@ class OpenLPApi {
       ...options,
       signal: abortController.signal
     })
+  }
+
+  private async buildQuerystring(values: any) {
+    let querystring = ''
+
+    if (typeof values !== 'object') return ''
+
+    let is_first_value = true
+    for (const [key, value] of Object.entries(values)) {
+      if (is_first_value) {
+        querystring += '?'
+      } else {
+        querystring += '&'
+      }
+      is_first_value = false
+
+      querystring += `${encodeURIComponent(key)}=${encodeURIComponent(value as any)}`
+    }
+
+    return querystring
   }
 }
 
@@ -156,6 +196,23 @@ class OpenLPSlide {
 
   async select () {
     await this.api.post('controller/show', { id: this.index })
+  }
+}
+
+class SongSearchResult {
+  private api: OpenLPApi
+
+  id: number
+  title: string
+
+  constructor (api: OpenLPApi, apiSongSearchResult: ApiSongSearchResult) {
+    this.api = api
+    this.id = apiSongSearchResult[0]
+    this.title = apiSongSearchResult[1]
+  }
+
+  async sendLive () {
+    this.api.post('plugins/songs/live', { id: this.id })
   }
 }
 
