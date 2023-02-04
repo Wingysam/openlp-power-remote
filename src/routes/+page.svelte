@@ -7,6 +7,18 @@
       <span style="vertical-align: middle;">Power Remote for OpenLP</span>
     </h1>
     {#if data.items && data.slides}
+      <div class="columns other-buttons is-multiline">
+      {#each data.hotkeyButtons as button}
+        <div class="column is-narrow">
+          <button class="button item-button" on:click="{() => button.activate()}">
+            {#if button.bind}
+              <span class="tag">{button.bind.display}</span>
+            {/if}
+            <span>{button.label}</span>
+          </button>
+        </div>
+      {/each}
+      </div>
       <div class="columns">
         <div class="column">
           <h2 class="title is-3">Slides</h2>
@@ -36,19 +48,6 @@
               </li>
             {/each}
           </ol>
-          <h2 class="title is-3">Other</h2>
-          <ul>
-            {#each data.hotkeyButtons as button}
-              <li>
-                <button class="button item-button" on:click="{() => button.activate()}">
-                  {#if button.bind}
-                    <span class="tag">{button.bind.display}</span>
-                  {/if}
-                  <span>{button.label}</span>
-                </button>
-              </li>
-            {/each}
-          </ul>
         </div>
       </div>
       <div class="modal" class:is-active="{data.songSearchModal}">
@@ -166,6 +165,12 @@
 
   .item-button .tag {
     margin-right: .5em;
+  }
+
+  .other-buttons > .column {
+    padding: 0;
+    margin-right: 0.5em;
+    margin-bottom: 0.5em;
   }
 </style>
 
