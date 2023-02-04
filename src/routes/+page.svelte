@@ -222,7 +222,18 @@
     try {
       const results = await olp.searchSongs(data.songSearchQuery)
       if (!results.length) throw new Error('No results found.')
-      await results[0].sendLive()
+      const result = results[0]
+
+      // If you search for a song that isn't in the service but has the same
+      // name as an item in the service, this will activate the item you didn't
+      // search for.
+      const existingItem = olp.items.find(item => item.title === result.title)
+      if (existingItem) {
+        await existingItem.select()
+      } else {
+        await result.sendLive()
+      }
+
       resetSongSearch()
     } catch (error) {
       if (!(error instanceof Error)) {
@@ -268,6 +279,7 @@
 
     try {
       olp = await OpenLP.new(fetch, selectedRemote)
+      ;(window as any).olp = olp
     } catch (error) {
       data.failedToConnect = true
       console.log(error)
