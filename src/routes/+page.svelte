@@ -133,13 +133,10 @@
     white-space: nowrap;
     overflow: hidden;
   }
-  .slide-column {
-    max-height: 10em;
-  }
   @media screen and (min-width: 769px) {
     .slide-column {
       min-width: 5em;
-      width: 25%;
+      width: 33.33%;
       max-width: fit-content;
       flex: none;
     }
